@@ -78,7 +78,7 @@ module.exports = async ({ botfile, projectLocation, logger }) => {
     }
   }
 
-  const listCategoryItems = async (categoryId, from = 0, count = 50, searchTerm) => {
+  const listCategoryItems = async (categoryId, { from = 0, count = 50, searchTerm, orderBy = ['created_on'] }) => {
     let query = knex('content_items')
 
     if (categoryId) {
@@ -90,7 +90,7 @@ module.exports = async ({ botfile, projectLocation, logger }) => {
     }
 
     const items = await query
-      .orderBy('createdOn')
+      .orderBy(...orderBy)
       .offset(from)
       .limit(count)
       .then()
@@ -99,29 +99,13 @@ module.exports = async ({ botfile, projectLocation, logger }) => {
   }
 
   const dumpDataToFile = async categoryId => {
-    const items = (await listCategoryItems(categoryId)).map(item =>
+    const items = (await listCategoryItems(categoryId, {})).map(item =>
       _.pick(item, 'id', 'formData', 'createdBy', 'createdOn')
     )
     fs.writeFileSync(fileById[categoryId], JSON.stringify(items, null, 2))
   }
 
   const dumpAllDataToFiles = () => Promise.map(categories, ({ id }) => dumpDataToFile(id))
-
-  const listAvailableCategories = () =>
-    Promise.map(categories, async category => {
-      const count = await knex('content_items')
-        .where({ categoryId: category.id })
-        .count('* as count')
-        .get(0)
-        .then(row => (row && row.count) || 0)
-
-      return {
-        id: category.id,
-        title: category.title,
-        description: category.description,
-        count
-      }
-    })
 
   const getCategorySchema = categoryId => {
     const category = _.find(categories, { id: categoryId })
@@ -137,6 +121,23 @@ module.exports = async ({ botfile, projectLocation, logger }) => {
       ummBloc: category.ummBloc
     }
   }
+
+  const listAvailableCategories = () =>
+    Promise.map(categories, async category => {
+      const count = await knex('content_items')
+        .where({ categoryId: category.id })
+        .count('* as count')
+        .get(0)
+        .then(row => (row && row.count) || 0)
+
+      return {
+        id: category.id,
+        title: category.title,
+        description: category.description,
+        count,
+        schema: await getCategorySchema(category.id)
+      }
+    })
 
   const fillComputedProps = async (category, formData) => {
     if (_.isNil(formData) || !_.isObject(formData)) {
@@ -185,18 +186,21 @@ module.exports = async ({ botfile, projectLocation, logger }) => {
         .then()
     } else {
       const randomId = getNewItemId(category)
-      await knex('content_items')
-        .insert({
-          ...body,
-          createdBy: 'admin',
-          createdOn: helpers(knex).date.now(),
-          id: randomId,
-          categoryId
-        })
-        .then()
+      await knex('content_items').insert({
+        ...body,
+        createdBy: 'admin',
+        createdOn: helpers(knex).date.now(),
+        id: randomId,
+        categoryId
+      })
     }
 
     return dumpDataToFile(categoryId)
+  }
+
+  const categoryItemsCount = async () => {
+    const [result] = await knex('content_items').count('id')
+    return result['count("id")']
   }
 
   const deleteCategoryItems = async ids => {
@@ -323,6 +327,7 @@ module.exports = async ({ botfile, projectLocation, logger }) => {
 
     createOrUpdateCategoryItem,
     listCategoryItems,
+    categoryItemsCount,
     deleteCategoryItems,
 
     getItem,
