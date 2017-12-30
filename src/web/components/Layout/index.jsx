@@ -22,7 +22,6 @@ import style from './style.scss'
 
 @connect(props => ({ UI: getters.UI }))
 class Layout extends React.Component {
-
   static contextTypes = {
     reactor: PropTypes.object.isRequired
   }
@@ -33,7 +32,7 @@ class Layout extends React.Component {
 
   componentDidMount() {
     const viewMode = this.props.location.query && this.props.location.query.viewMode
-    
+
     setImmediate(() => {
       actions.viewModeChanged(viewMode ? viewMode : 0)
     })
@@ -46,7 +45,7 @@ class Layout extends React.Component {
 
     const hasHeader = this.props.UI.get('viewMode') <= 2
     const classNames = classnames({
-      [style.container]: hasHeader, 
+      [style.container]: hasHeader,
       'bp-container': hasHeader
     })
 
@@ -57,11 +56,10 @@ class Layout extends React.Component {
           <section className={classNames}>{this.props.children}</section>
         </Sidebar>
         <SidebarFooter />
-        <GuidedTour opened={window.SHOW_GUIDED_TOUR}/>
+        <GuidedTour opened={window.SHOW_GUIDED_TOUR} />
         <LicenseComponent opened={this.props.UI.get('licenseModalOpened')} />
         <AboutComponent opened={this.props.UI.get('aboutModalOpened')} />
-        <PluginInjectionSite site={'overlay'}/>
-        <HelpButton />
+        <PluginInjectionSite site={'overlay'} />
       </div>
     )
   }
